@@ -17,7 +17,7 @@
     "@fontsource/schoolbell": "^5.3.0",
     "@fontsource/short-stack": "^5.3.0",
     "@fontsource/special-elite": "^5.3.0",
-    "html-to-image": "^1.11.13",
+    "fflate": "^0.8.3",
     "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",

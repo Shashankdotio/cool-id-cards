@@ -110,11 +110,25 @@ export function CardFace({
         const value = `${field.valuePrefix ?? ''}${formattedValue(field, fieldValue)}`
 
         if (field.type === 'photo') {
+          if (field.hideIfPhotoMissing && !photo) return null
+
+          const filter = field.photoFilter
+          const filterEnabled = filter && values[filter.valueId] === filter.enabledValue
+          const filterIntensity = filter?.intensityId
+            ? Math.min(100, Math.max(0, Number(values[filter.intensityId]) || 0)) / 100
+            : 1
+          const photoStyle: CSSProperties & { '--photo-filter-intensity'?: number } = {
+            ...style,
+            ...(filterEnabled && filter?.effect === 'tva'
+              ? { '--photo-filter-intensity': filterIntensity }
+              : {}),
+          }
+
           return (
             <div
-              className={`card-field card-field--photo${values.vintageFilter === 'on' ? ' card-field--vintage' : ''}`}
+              className={`card-field card-field--photo${filterEnabled ? ` card-field--${filter.effect}` : ''}`}
               key={field.id}
-              style={style}
+              style={photoStyle}
             >
               {photo ? (
                 <img src={photo} alt="" />

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { toPng } from 'html-to-image'
 import QRCode from 'qrcode'
+import { zipSync } from 'fflate'
 import type { Area } from 'react-easy-crop'
 import { COFFEE_URL, CREATOR_HANDLE } from './config'
 import { CardFace, type CardValues } from './components/CardFace'
 import { CropDialog } from './components/CropDialog'
 import { SignaturePad } from './components/SignaturePad'
 import { getTemplate, templates } from './templates'
-import type { CardTemplate, PhotoOption, TemplateOption } from './types'
+import type { CardTemplate, PhotoOption, TemplateFace, TemplateField, TemplateOption } from './types'
 
 type Screen = 'landing' | 'gallery' | 'editor'
 
@@ -56,32 +56,235 @@ function createCroppedPhoto(imageUrl: string, crop: Area): Promise<string> {
   })
 }
 
-async function waitForImages(element: HTMLElement): Promise<void> {
-  const imageElements = Array.from(element.querySelectorAll('img'))
-  await Promise.all(
-    imageElements.map(async (image) => {
-      await image.decode()
-      if (!image.naturalWidth || !image.naturalHeight) {
-        throw new Error(`Could not decode card image: ${image.currentSrc || image.src}`)
-      }
-    }),
-  )
+function loadImage(source: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error(`Could not load card artwork: ${source}`))
+    image.src = source
+  })
+}
 
-  const backgroundUrls = Array.from(
-    getComputedStyle(element).backgroundImage.matchAll(/url\(["']?(.*?)["']?\)/g),
-    (match) => match[1],
-  )
-  await Promise.all(
-    backgroundUrls.map(async (url) => {
-      if (!url) return
-      const image = new Image()
-      image.src = url
-      await image.decode()
-      if (!image.naturalWidth || !image.naturalHeight) {
-        throw new Error(`Could not decode card background: ${url}`)
+function drawImageFit(
+  context: CanvasRenderingContext2D,
+  image: CanvasImageSource & { width: number; height: number },
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fit: TemplateField['imageFit'] = 'fill',
+  align: TemplateField['imageAlign'] = 'center',
+) {
+  if (fit === 'fill') {
+    context.drawImage(image, x, y, width, height)
+    return
+  }
+
+  const scale = fit === 'cover'
+    ? Math.max(width / image.width, height / image.height)
+    : Math.min(width / image.width, height / image.height)
+  const drawWidth = image.width * scale
+  const drawHeight = image.height * scale
+  const drawX = align === 'left'
+    ? x
+    : align === 'right'
+      ? x + width - drawWidth
+      : x + (width - drawWidth) / 2
+  context.save()
+  context.beginPath()
+  context.rect(x, y, width, height)
+  context.clip()
+  context.drawImage(image, drawX, y + (height - drawHeight) / 2, drawWidth, drawHeight)
+  context.restore()
+}
+
+function fieldValue(field: TemplateField, values: CardValues): string {
+  const value = values[field.id] ?? field.defaultValue ?? ''
+  if (field.dateFormat !== 'mm/dd/yyyy' || !value) {
+    return `${field.valuePrefix ?? ''}${value}`
+  }
+  const [year, month, day] = value.split('-')
+  const formatted = year && month && day ? `${month}/${day}/${year}` : value
+  return `${field.valuePrefix ?? ''}${formatted}`
+}
+
+async function renderFace(
+  face: TemplateFace,
+  template: CardTemplate,
+  values: CardValues,
+  photo: string | null,
+  qrImage: string | null,
+  previewWidth: number,
+): Promise<Uint8Array> {
+  const portrait = template.orientation === 'portrait'
+  const widthMm = portrait ? template.sizeMm.height : template.sizeMm.width
+  const heightMm = portrait ? template.sizeMm.width : template.sizeMm.height
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round((widthMm / 25.4) * 300)
+  canvas.height = Math.round((heightMm / 25.4) * 300)
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Your browser could not prepare the card image.')
+
+  const exportScale = canvas.width / previewWidth
+  const background = await loadImage(face.backgroundImage)
+  context.drawImage(background, 0, 0, canvas.width, canvas.height)
+
+  for (const field of face.fields) {
+    if (
+      field.visibleWhen &&
+      values[field.visibleWhen.field] !== field.visibleWhen.value
+    ) continue
+    if (field.type === 'photo' && field.hideIfPhotoMissing && !photo) continue
+
+    const x = (field.x / 100) * canvas.width
+    const y = (field.y / 100) * canvas.height
+    const width = (field.width / 100) * canvas.width
+    const height = (field.height / 100) * canvas.height
+    const value = fieldValue(field, values)
+
+    if (field.backgroundColor) {
+      context.fillStyle = field.backgroundColor
+      context.fillRect(x, y, width, height)
+    }
+
+    if (field.type === 'photo') {
+      if (photo) {
+        const image = await loadImage(photo)
+        const filter = field.photoFilter
+        const enabled = filter && values[filter.valueId] === filter.enabledValue
+        const intensity = filter?.intensityId
+          ? Math.min(100, Math.max(0, Number(values[filter.intensityId]) || 0)) / 100
+          : 1
+        context.save()
+        context.filter = enabled && filter?.effect === 'tva'
+          ? `sepia(${intensity * 100}%)`
+          : enabled && filter?.effect === 'vintage'
+            ? 'sepia(62%) saturate(78%) contrast(108%)'
+            : 'none'
+        drawImageFit(context, image, x, y, width, height, 'cover')
+        context.restore()
+        if (filter?.effect !== 'tva') {
+          context.strokeStyle = '#666'
+          context.lineWidth = Math.max(1, exportScale)
+          context.strokeRect(x, y, width, height)
+        }
+        if (enabled && filter?.effect === 'vintage') {
+          drawVintageTexture(context, x, y, width, height)
+        }
+      } else {
+        context.fillStyle = '#e8e8e8'
+        context.fillRect(x, y, width, height)
+        context.fillStyle = '#777'
+        context.font = `${Math.max(8, canvas.width * 0.03)}px sans-serif`
+        context.textAlign = 'center'
+        context.textBaseline = 'middle'
+        context.fillText('photo', x + width / 2, y + height / 2)
+        context.strokeStyle = '#666'
+        context.lineWidth = Math.max(1, exportScale)
+        context.strokeRect(x, y, width, height)
       }
-    }),
-  )
+      continue
+    }
+
+    if (field.type === 'qr') {
+      if (qrImage) {
+        const image = await loadImage(qrImage)
+        drawImageFit(context, image, x, y, width, height, field.imageFit, field.imageAlign)
+      }
+      continue
+    }
+
+    if (field.type === 'image') {
+      if (value) {
+        const image = await loadImage(value)
+        drawImageFit(context, image, x, y, width, height, field.imageFit, field.imageAlign)
+      }
+      continue
+    }
+
+    if (!value) continue
+    context.save()
+    context.beginPath()
+    context.rect(x, y, width, height)
+    context.clip()
+    context.translate(x + width / 2, y + height / 2)
+    if (field.rotation) context.rotate((field.rotation * Math.PI) / 180)
+    const fontFamily = field.fontValue ? values[field.fontValue] : field.font ?? 'sans-serif'
+    let fontSize = (field.size ?? 16) * exportScale
+    context.font = `700 ${fontSize}px ${fontFamily}`
+    if (field.autoFit) {
+      while (
+        fontSize > 7 * exportScale &&
+        (context.measureText(value).width > width ||
+          fontSize > height)
+      ) {
+        fontSize -= 0.5 * exportScale
+        context.font = `700 ${fontSize}px ${fontFamily}`
+      }
+    }
+    context.fillStyle = field.color ?? '#000'
+    context.textAlign = field.alignment ?? 'center'
+    context.textBaseline = 'middle'
+    const textX = field.alignment === 'left'
+      ? -width / 2
+      : field.alignment === 'right'
+        ? width / 2
+        : 0
+    if (field.writingMode) {
+      context.rotate(Math.PI / 2)
+      context.textAlign = 'center'
+    }
+    context.fillText(value, field.writingMode ? 0 : textX, 0)
+    context.restore()
+  }
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+  if (!blob || blob.size === 0) throw new Error('Could not create the card PNG.')
+  return new Uint8Array(await blob.arrayBuffer())
+}
+
+function drawVintageTexture(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const texture = document.createElement('canvas')
+  texture.width = 180
+  texture.height = 180
+  const textureContext = texture.getContext('2d')
+  if (!textureContext) return
+  const imageData = textureContext.createImageData(texture.width, texture.height)
+  let seed = 17
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    seed = (seed * 16807) % 2147483647
+    const value = seed % 256
+    imageData.data[i] = value
+    imageData.data[i + 1] = value
+    imageData.data[i + 2] = value
+    imageData.data[i + 3] = 87
+  }
+  textureContext.putImageData(imageData, 0, 0)
+  const pattern = context.createPattern(texture, 'repeat')
+  if (!pattern) return
+  context.save()
+  context.globalAlpha = 0.22
+  context.globalCompositeOperation = 'multiply'
+  context.fillStyle = pattern
+  context.fillRect(x, y, width, height)
+  context.restore()
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.append(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function PixelDecorations() {
@@ -304,6 +507,25 @@ function OptionControl({
     )
   }
 
+  if (option.type === 'range') {
+    return (
+      <label className="editor-control range-control">
+        <span className="range-control-heading">
+          <span className="control-label">{option.label}</span>
+          <output>{value}%</output>
+        </span>
+        <input
+          type="range"
+          min={option.min}
+          max={option.max}
+          step={option.step}
+          value={value}
+          onChange={(event) => onChange(event.currentTarget.value)}
+        />
+      </label>
+    )
+  }
+
   return (
     <label className="editor-control">
       <span className="control-label">{option.label}</span>
@@ -326,6 +548,7 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
   const [qrResult, setQrResult] = useState<{ url: string; image: string } | null>(null)
   const [debug, setDebug] = useState(false)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState(false)
   const frontRef = useRef<HTMLDivElement>(null)
   const backRef = useRef<HTMLDivElement>(null)
   const photoField = getPhotoField(template)
@@ -393,27 +616,49 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
     setError('')
   }
 
-  const downloadFace = async (element: HTMLDivElement | null, side: 'front' | 'back') => {
-    if (!element) return
+  const downloadCard = async () => {
+    if (exporting) return
+    setExporting(true)
+    setError('')
     try {
       await document.fonts.ready
       await document.fonts.load('150px Caveat')
-      if (!element) return
-      await waitForImages(element)
-      const bounds = element.getBoundingClientRect()
-      const physicalWidthMm =
-        template.orientation === 'portrait' ? template.sizeMm.height : template.sizeMm.width
-      const outputWidth = Math.round((physicalWidthMm / 25.4) * 300)
-      const dataUrl = await toPng(element, {
-        cacheBust: true,
-        pixelRatio: outputWidth / bounds.width,
-      })
-      const link = document.createElement('a')
-      link.download = `cardverse-${template.id}-${side}.png`
-      link.href = dataUrl
-      link.click()
+      if (isCustomQr && values.qrUrl.trim() && !qrImage) {
+        throw new Error('The QR code is still being prepared. Please try again.')
+      }
+      const frontWidth = frontRef.current?.getBoundingClientRect().width
+      const backWidth = backRef.current?.getBoundingClientRect().width
+      if (!frontWidth || !backWidth) {
+        throw new Error('The card previews are not ready to export.')
+      }
+      const frontPng = await renderFace(
+        template.front,
+        template,
+        values,
+        photo,
+        qrImage,
+        frontWidth,
+      )
+      const backPng = await renderFace(
+        template.back,
+        template,
+        values,
+        photo,
+        qrImage,
+        backWidth,
+      )
+      const archive = zipSync({
+        [`cardverse-${template.id}-front.png`]: frontPng,
+        [`cardverse-${template.id}-back.png`]: backPng,
+      }, { level: 0 })
+      downloadBlob(
+        new Blob([archive], { type: 'application/zip' }),
+        `cardverse-${template.id}.zip`,
+      )
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : `Could not export the ${side} PNG.`)
+      setError(cause instanceof Error ? cause.message : 'Could not create the card ZIP.')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -501,12 +746,10 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
           <button
             className="bevel-button primary-button"
             type="button"
-            onClick={() => void Promise.all([
-              downloadFace(frontRef.current, 'front'),
-              downloadFace(backRef.current, 'back'),
-            ])}
+            onClick={() => void downloadCard()}
+            disabled={exporting}
           >
-            download png
+            {exporting ? 'preparing zip…' : 'download both sides (.zip)'}
           </button>
         </div>
         {photoOption && photoField && (

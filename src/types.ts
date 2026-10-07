@@ -26,6 +26,13 @@ export interface TemplateField {
   defaultValue?: string
   placeholder?: string
   visibleWhen?: { field: string; value: string }
+  hideIfPhotoMissing?: boolean
+  photoFilter?: {
+    valueId: string
+    enabledValue: string
+    intensityId?: string
+    effect: 'vintage' | 'tva'
+  }
 }
 
 export interface TemplateFace {
@@ -65,6 +72,16 @@ export interface PhotoOption {
   label: string
 }
 
+export interface RangeOption {
+  type: 'range'
+  id: string
+  label: string
+  defaultValue: string
+  min: number
+  max: number
+  step: number
+}
+
 export interface DateOption {
   type: 'date'
   id: string
@@ -90,6 +107,7 @@ export type TemplateOption =
   | SelectOption
   | ToggleOption
   | PhotoOption
+  | RangeOption
   | DateOption
   | RandomizeTextOption
   | SignatureOption

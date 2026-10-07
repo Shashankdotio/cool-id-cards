@@ -374,6 +374,15 @@ h1 {
   mix-blend-mode: multiply;
 }
 
+.card-field--tva {
+  border: 0;
+  background: transparent;
+}
+
+.card-field--tva img {
+  filter: sepia(var(--photo-filter-intensity, 0.75));
+}
+
 .card-field--image {
   display: flex;
   align-items: center;
@@ -441,6 +450,26 @@ h1 {
 .editor-control select:focus {
   border-color: var(--blue);
   outline: 2px solid rgb(26 26 219 / 13%);
+}
+
+.range-control-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.range-control-heading output {
+  color: #555;
+  font-size: 0.79rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.editor-control input[type='range'] {
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--blue);
 }
 
 .randomize-input {

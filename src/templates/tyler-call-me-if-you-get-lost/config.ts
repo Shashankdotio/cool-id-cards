@@ -25,6 +25,11 @@ const template: CardTemplate = {
         y: 16.2,
         width: 38.4,
         height: 66.2,
+        photoFilter: {
+          valueId: 'vintageFilter',
+          enabledValue: 'on',
+          effect: 'vintage',
+        },
       },
       {
         id: 'number',
