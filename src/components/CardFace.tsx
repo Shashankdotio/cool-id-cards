@@ -23,6 +23,7 @@ function fieldStyle(field: TemplateField): CSSProperties {
     fontFamily: field.font,
     fontSize: field.size ? `${field.size}px` : undefined,
     color: field.color,
+    backgroundColor: field.backgroundColor,
     textAlign: field.alignment,
     transform: field.rotation ? `rotate(${field.rotation}deg)` : undefined,
     writingMode: field.writingMode,
@@ -75,7 +76,14 @@ export function CardFace({
           return (
             <div className="card-field card-field--qr" key={field.id} style={style}>
               {qrImage && values.backMode === 'qr' ? (
-                <img src={qrImage} alt="custom QR code" />
+                <img
+                  src={qrImage}
+                  alt="custom QR code"
+                  style={{
+                    objectFit: field.imageFit ?? 'contain',
+                    objectPosition: `${field.imageAlign ?? 'center'} center`,
+                  }}
+                />
               ) : null}
             </div>
           )
@@ -83,13 +91,16 @@ export function CardFace({
 
         if (field.type === 'image') {
           return (
-            <img
-              className="card-field card-field--image"
-              key={field.id}
-              style={style}
-              src={value}
-              alt=""
-            />
+            <div className="card-field card-field--image" key={field.id} style={style}>
+              <img
+                src={value}
+                alt=""
+                style={{
+                  objectFit: field.imageFit ?? 'fill',
+                  objectPosition: `${field.imageAlign ?? 'center'} center`,
+                }}
+              />
+            </div>
           )
         }
 

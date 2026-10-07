@@ -361,7 +361,15 @@ h1 {
 }
 
 .card-field--image {
-  object-fit: fill;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-field--image img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .card-field--qr {

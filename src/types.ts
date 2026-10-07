@@ -12,6 +12,9 @@ export interface TemplateField {
   font?: string
   size?: number
   color?: string
+  backgroundColor?: string
+  imageFit?: 'contain' | 'cover' | 'fill'
+  imageAlign?: 'left' | 'center' | 'right'
   alignment?: TextAlignment
   rotation?: number
   writingMode?: 'vertical-rl' | 'vertical-lr'

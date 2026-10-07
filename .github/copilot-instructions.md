@@ -9,4 +9,4 @@ Rules for every task:
 - Real card size is 85.6 x 54 mm. Anything print-related must use real millimeters.
 - Write clean, commented, typed code. No TODO placeholders in finished features. Keep dependencies minimal.
 - Footer on every page: "Fan-made project. Not affiliated with or endorsed by any rights holders. For cosplay, props and personal use only. Not a real ID."
-- After each task, tell me how to run it and what to test.
+- After each task, tell me how to run it and what to test. 
