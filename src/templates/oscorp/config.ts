@@ -6,9 +6,9 @@ const template: CardTemplate = {
   caption: 'tasm: oscorp staff id',
   orientation: 'portrait',
   sizeMm: { width: 85.6, height: 54 },
-  previewImage: '/templates/oscorp_front.png',
+  previewImage: '/templates/oscorp/oscorp_front.png',
   front: {
-    backgroundImage: '/templates/oscorp_front.png',
+    backgroundImage: '/templates/oscorp/oscorp_front.png',
     fields: [
       {
         id: 'photo',
@@ -65,7 +65,7 @@ const template: CardTemplate = {
     ],
   },
   back: {
-    backgroundImage: '/templates/oscorp_back.svg',
+    backgroundImage: '/templates/oscorp/oscorp_back.svg',
     fields: [
       {
         id: 'oscorp-logo',
@@ -74,7 +74,7 @@ const template: CardTemplate = {
         y: 76,
         width: 50,
         height: 15,
-        defaultValue: '/templates/oscorp%20logo.svg',
+        defaultValue: '/templates/oscorp/oscorp%20logo.svg',
         imageFit: 'contain',
         imageAlign: 'right',
         backgroundColor: '#ffffff',
