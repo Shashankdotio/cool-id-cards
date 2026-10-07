@@ -360,6 +360,20 @@ h1 {
   object-fit: cover;
 }
 
+.card-field--vintage img {
+  filter: sepia(0.62) saturate(0.78) contrast(1.08);
+}
+
+.card-field--vintage::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.34'/%3E%3C/svg%3E");
+  content: '';
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+}
+
 .card-field--image {
   display: flex;
   align-items: center;
@@ -427,6 +441,96 @@ h1 {
 .editor-control select:focus {
   border-color: var(--blue);
   outline: 2px solid rgb(26 26 219 / 13%);
+}
+
+.randomize-input {
+  display: flex;
+  gap: 8px;
+}
+
+.randomize-input input {
+  min-width: 0;
+  flex: 1;
+}
+
+.randomize-input .bevel-button {
+  flex: none;
+  padding: 0 12px;
+  font-size: 0.76rem;
+  text-transform: lowercase;
+}
+
+.signature-control {
+  min-width: 0;
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.signature-control legend {
+  margin-bottom: 7px;
+  padding: 0;
+}
+
+.signature-tabs {
+  display: flex;
+  max-width: 250px;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.signature-tabs .toggle-choice {
+  min-height: 38px;
+}
+
+.signature-canvas {
+  display: block;
+  width: 100%;
+  height: 125px;
+  border: 1px dashed #aaa;
+  border-radius: 4px;
+  background: #fffefa;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.signature-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 9px;
+}
+
+.signature-tools .bevel-button {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 0.75rem;
+}
+
+.signature-thickness {
+  display: flex;
+  flex: 1;
+  min-width: 150px;
+  align-items: center;
+  gap: 10px;
+  color: #555;
+  font-size: 0.75rem;
+}
+
+.signature-thickness input {
+  flex: 1;
+  accent-color: var(--blue);
+}
+
+.signature-type-control {
+  max-width: 460px;
+}
+
+.signature-type-control input {
+  font-family: Caveat, cursive;
+  font-size: 1.5rem;
 }
 
 .toggle-control {

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 1000">
+  <defs>
+    <filter id="paper-grain">
+      <feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 .08"/>
+      </feComponentTransfer>
+      <feBlend in="SourceGraphic" mode="multiply"/>
+    </filter>
+  </defs>
+  <rect width="1560" height="1000" rx="72" fill="#f2e5bd"/>
+  <rect x="18" y="18" width="1524" height="964" rx="58" fill="none" stroke="#9b8051" stroke-width="4"/>
+  <rect x="40" y="40" width="1480" height="920" rx="48" fill="none" stroke="#c5ae7d" stroke-width="2"/>
+  <rect width="1560" height="1000" rx="72" fill="#dfc895" opacity=".23" filter="url(#paper-grain)"/>
+  <text x="780" y="350" text-anchor="middle" fill="#241f18" font-family="Special Elite, monospace" font-size="78">IF FOUND,</text>
+  <text x="780" y="455" text-anchor="middle" fill="#241f18" font-family="Special Elite, monospace" font-size="78">CALL ME</text>
+  <path d="M310 625h940" stroke="#8e7954" stroke-width="3" stroke-dasharray="5 14"/>
+</svg>

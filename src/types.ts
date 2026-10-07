@@ -16,6 +16,10 @@ export interface TemplateField {
   imageFit?: 'contain' | 'cover' | 'fill'
   imageAlign?: 'left' | 'center' | 'right'
   alignment?: TextAlignment
+  fontValue?: string
+  autoFit?: boolean
+  dateFormat?: 'mm/dd/yyyy'
+  valuePrefix?: string
   rotation?: number
   writingMode?: 'vertical-rl' | 'vertical-lr'
   maxLength?: number
@@ -36,6 +40,7 @@ export interface TextOption {
   defaultValue: string
   maxLength: number
   placeholder?: string
+  inputType?: 'text' | 'tel' | 'url'
 }
 
 export interface SelectOption {
@@ -60,7 +65,34 @@ export interface PhotoOption {
   label: string
 }
 
-export type TemplateOption = TextOption | SelectOption | ToggleOption | PhotoOption
+export interface DateOption {
+  type: 'date'
+  id: string
+  label: string
+}
+
+export interface RandomizeTextOption {
+  type: 'randomizeText'
+  id: string
+  label: string
+  defaultValue: string
+  maxLength: number
+}
+
+export interface SignatureOption {
+  type: 'signature'
+  id: string
+  label: string
+}
+
+export type TemplateOption =
+  | TextOption
+  | SelectOption
+  | ToggleOption
+  | PhotoOption
+  | DateOption
+  | RandomizeTextOption
+  | SignatureOption
 
 export interface CardTemplate {
   id: string

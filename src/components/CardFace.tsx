@@ -1,4 +1,4 @@
-import type { CSSProperties, Ref } from 'react'
+import { useLayoutEffect, useRef, type CSSProperties, type Ref } from 'react'
 import type { CardTemplate, TemplateFace, TemplateField } from '../types'
 
 export type CardValues = Record<string, string>
@@ -14,20 +14,68 @@ interface CardFaceProps {
   label: string
 }
 
-function fieldStyle(field: TemplateField): CSSProperties {
+function fieldStyle(field: TemplateField, values: CardValues): CSSProperties {
   return {
     left: `${field.x}%`,
     top: `${field.y}%`,
     width: `${field.width}%`,
     height: `${field.height}%`,
-    fontFamily: field.font,
+    fontFamily: field.fontValue ? values[field.fontValue] : field.font,
     fontSize: field.size ? `${field.size}px` : undefined,
     color: field.color,
     backgroundColor: field.backgroundColor,
     textAlign: field.alignment,
+    justifyContent:
+      field.alignment === 'left'
+        ? 'flex-start'
+        : field.alignment === 'right'
+          ? 'flex-end'
+          : 'center',
     transform: field.rotation ? `rotate(${field.rotation}deg)` : undefined,
     writingMode: field.writingMode,
   }
+}
+
+function formattedValue(field: TemplateField, value: string): string {
+  if (field.dateFormat !== 'mm/dd/yyyy' || !value) return value
+  const [year, month, day] = value.split('-')
+  return year && month && day ? `${month}/${day}/${year}` : value
+}
+
+function AutoFitText({
+  field,
+  value,
+  style,
+  fontFamily,
+}: {
+  field: TemplateField
+  value: string
+  style: CSSProperties
+  fontFamily?: string
+}) {
+  const fieldRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const element = fieldRef.current
+    if (!element || !field.autoFit || !field.size) return
+
+    let fontSize = field.size
+    element.style.fontSize = `${fontSize}px`
+    while (
+      fontSize > 7 &&
+      (element.scrollWidth > element.clientWidth + 1 ||
+        element.scrollHeight > element.clientHeight + 1)
+    ) {
+      fontSize -= 0.5
+      element.style.fontSize = `${fontSize}px`
+    }
+  }, [field.autoFit, field.size, fontFamily, value])
+
+  return (
+    <div ref={fieldRef} className="card-field card-field--text" style={style}>
+      {value}
+    </div>
+  )
 }
 
 export function CardFace({
@@ -57,12 +105,17 @@ export function CardFace({
           return null
         }
 
-        const style = fieldStyle(field)
-        const value = values[field.id] ?? field.defaultValue ?? ''
+        const style = fieldStyle(field, values)
+        const fieldValue = values[field.id] ?? field.defaultValue ?? ''
+        const value = `${field.valuePrefix ?? ''}${formattedValue(field, fieldValue)}`
 
         if (field.type === 'photo') {
           return (
-            <div className="card-field card-field--photo" key={field.id} style={style}>
+            <div
+              className={`card-field card-field--photo${values.vintageFilter === 'on' ? ' card-field--vintage' : ''}`}
+              key={field.id}
+              style={style}
+            >
               {photo ? (
                 <img src={photo} alt="" />
               ) : (
@@ -90,6 +143,7 @@ export function CardFace({
         }
 
         if (field.type === 'image') {
+          if (!value) return null
           return (
             <div className="card-field card-field--image" key={field.id} style={style}>
               <img
@@ -104,9 +158,17 @@ export function CardFace({
           )
         }
 
-        return (
+        return field.autoFit ? (
+          <AutoFitText
+            field={field}
+            key={field.id}
+            style={style}
+            value={value}
+            fontFamily={style.fontFamily}
+          />
+        ) : (
           <div className="card-field card-field--text" key={field.id} style={style}>
-            {values[field.id] ?? field.defaultValue ?? ''}
+            {value}
           </div>
         )
       })}

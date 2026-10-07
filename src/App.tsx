@@ -5,6 +5,7 @@ import type { Area } from 'react-easy-crop'
 import { COFFEE_URL, CREATOR_HANDLE } from './config'
 import { CardFace, type CardValues } from './components/CardFace'
 import { CropDialog } from './components/CropDialog'
+import { SignaturePad } from './components/SignaturePad'
 import { getTemplate, templates } from './templates'
 import type { CardTemplate, PhotoOption, TemplateOption } from './types'
 
@@ -15,9 +16,9 @@ const DISCLAIMER =
 
 function defaultsFor(template: CardTemplate): CardValues {
   return Object.fromEntries(
-    template.options
-      .filter((option) => option.type !== 'photo')
-      .map((option) => [option.id, option.defaultValue]),
+    template.options.flatMap((option) =>
+      'defaultValue' in option ? [[option.id, option.defaultValue]] : [],
+    ),
   )
 }
 
@@ -53,6 +54,34 @@ function createCroppedPhoto(imageUrl: string, crop: Area): Promise<string> {
     image.onerror = () => reject(new Error('The selected photo could not be loaded.'))
     image.src = imageUrl
   })
+}
+
+async function waitForImages(element: HTMLElement): Promise<void> {
+  const imageElements = Array.from(element.querySelectorAll('img'))
+  await Promise.all(
+    imageElements.map(async (image) => {
+      await image.decode()
+      if (!image.naturalWidth || !image.naturalHeight) {
+        throw new Error(`Could not decode card image: ${image.currentSrc || image.src}`)
+      }
+    }),
+  )
+
+  const backgroundUrls = Array.from(
+    getComputedStyle(element).backgroundImage.matchAll(/url\(["']?(.*?)["']?\)/g),
+    (match) => match[1],
+  )
+  await Promise.all(
+    backgroundUrls.map(async (url) => {
+      if (!url) return
+      const image = new Image()
+      image.src = url
+      await image.decode()
+      if (!image.naturalWidth || !image.naturalHeight) {
+        throw new Error(`Could not decode card background: ${url}`)
+      }
+    }),
+  )
 }
 
 function PixelDecorations() {
@@ -158,6 +187,9 @@ function OptionControl({
   onPhotoSelect,
   onPhotoDrop,
   hasPhoto,
+  onSignatureChange,
+  onSignatureError,
+  onRandomize,
 }: {
   option: TemplateOption
   value: string
@@ -165,6 +197,9 @@ function OptionControl({
   onPhotoSelect: (file: File) => void
   onPhotoDrop: (file: File) => void
   hasPhoto: boolean
+  onSignatureChange: (value: string) => void
+  onSignatureError: (message: string) => void
+  onRandomize: () => void
 }) {
   if (option.type === 'photo') {
     const handleFile = (file?: File) => {
@@ -215,6 +250,49 @@ function OptionControl({
     )
   }
 
+  if (option.type === 'date') {
+    return (
+      <label className="editor-control">
+        <span className="control-label">{option.label}</span>
+        <input
+          type="date"
+          lang="en-US"
+          value={value}
+          onChange={(event) => onChange(event.currentTarget.value)}
+        />
+      </label>
+    )
+  }
+
+  if (option.type === 'signature') {
+    return (
+      <SignaturePad
+        label={option.label}
+        onChange={onSignatureChange}
+        onError={onSignatureError}
+      />
+    )
+  }
+
+  if (option.type === 'randomizeText') {
+    return (
+      <label className="editor-control">
+        <span className="control-label">{option.label}</span>
+        <span className="randomize-input">
+          <input
+            type="text"
+            value={value}
+            maxLength={option.maxLength}
+            onChange={(event) => onChange(event.currentTarget.value)}
+          />
+          <button className="bevel-button" type="button" onClick={onRandomize}>
+            randomize
+          </button>
+        </span>
+      </label>
+    )
+  }
+
   if (option.type === 'select') {
     return (
       <label className="editor-control">
@@ -230,7 +308,7 @@ function OptionControl({
     <label className="editor-control">
       <span className="control-label">{option.label}</span>
       <input
-        type="text"
+        type={option.inputType ?? 'text'}
         value={value}
         maxLength={option.maxLength}
         placeholder={option.placeholder}
@@ -242,6 +320,7 @@ function OptionControl({
 
 function Editor({ template, onBack }: { template: CardTemplate; onBack: () => void }) {
   const [values, setValues] = useState(() => defaultsFor(template))
+  const [resetVersion, setResetVersion] = useState(0)
   const [photo, setPhoto] = useState<string | null>(null)
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null)
   const [qrResult, setQrResult] = useState<{ url: string; image: string } | null>(null)
@@ -309,6 +388,7 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
   const reset = () => {
     if (!window.confirm('reset the card and remove your photo?')) return
     setValues(defaultsFor(template))
+    setResetVersion((version) => version + 1)
     setPhoto(null)
     setError('')
   }
@@ -317,6 +397,9 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
     if (!element) return
     try {
       await document.fonts.ready
+      await document.fonts.load('150px Caveat')
+      if (!element) return
+      await waitForImages(element)
       const bounds = element.getBoundingClientRect()
       const physicalWidthMm =
         template.orientation === 'portrait' ? template.sizeMm.height : template.sizeMm.width
@@ -386,15 +469,26 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
         <div className="control-grid">
           {template.options.map((option) => {
             if (option.id === 'qrUrl' && !isCustomQr) return null
+            if (option.id === 'phoneNumber' && values.backMode !== 'phone') return null
             return (
               <OptionControl
-                key={option.id}
+                key={option.type === 'signature' ? `${option.id}-${resetVersion}` : option.id}
                 option={option}
                 value={values[option.id] ?? ''}
                 onChange={(value) => updateValue(option.id, value)}
                 onPhotoSelect={selectPhoto}
                 onPhotoDrop={selectPhoto}
                 hasPhoto={Boolean(photo)}
+                onSignatureChange={(value) => updateValue(option.id, value)}
+                onSignatureError={setError}
+                onRandomize={() => {
+                  const randomValue = new Uint32Array(1)
+                  crypto.getRandomValues(randomValue)
+                  updateValue(
+                    option.id,
+                    `TTC${String(randomValue[0] % 10_000_000).padStart(7, '0')}`,
+                  )
+                }}
               />
             )
           })}
