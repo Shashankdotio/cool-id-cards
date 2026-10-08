@@ -1,6 +1,9 @@
 export type CardOrientation = 'portrait' | 'landscape'
-export type FieldType = 'photo' | 'text' | 'qr' | 'image'
+export type FieldType = 'photo' | 'text' | 'qr' | 'image' | 'barcode'
 export type TextAlignment = 'left' | 'center' | 'right'
+export type VisibilityCondition =
+  | { field: string; value: string }
+  | { field: string; values: string[] }
 
 export interface TemplateField {
   id: string
@@ -25,7 +28,8 @@ export interface TemplateField {
   maxLength?: number
   defaultValue?: string
   placeholder?: string
-  visibleWhen?: { field: string; value: string }
+  textLayout?: 'assistantToRegionalManager'
+  visibleWhen?: VisibilityCondition
   hideIfPhotoMissing?: boolean
   photoFilter?: {
     valueId: string
@@ -48,6 +52,7 @@ export interface TextOption {
   maxLength: number
   placeholder?: string
   inputType?: 'text' | 'tel' | 'url'
+  visibleWhen?: VisibilityCondition
 }
 
 export interface SelectOption {
@@ -94,6 +99,7 @@ export interface RandomizeTextOption {
   label: string
   defaultValue: string
   maxLength: number
+  prefix?: string
 }
 
 export interface SignatureOption {

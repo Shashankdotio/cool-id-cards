@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import '@fontsource/archivo-black'
 import '@fontsource/special-elite'
 import '@fontsource/gaegu'
 import '@fontsource/patrick-hand'

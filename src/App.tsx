@@ -7,8 +7,16 @@ import { CardFace, type CardValues } from './components/CardFace'
 import { CropDialog } from './components/CropDialog'
 import { SignaturePad } from './components/SignaturePad'
 import { getTemplate, templates } from './templates'
+import { createBarcode } from './utils/barcode'
 import { cropPhoto, processPhoto } from './utils/photo'
-import type { CardTemplate, PhotoOption, TemplateFace, TemplateField, TemplateOption } from './types'
+import type {
+  CardTemplate,
+  PhotoOption,
+  TemplateFace,
+  TemplateField,
+  TemplateOption,
+  VisibilityCondition,
+} from './types'
 
 type Screen = 'landing' | 'gallery' | 'editor'
 
@@ -79,6 +87,11 @@ function fieldValue(field: TemplateField, values: CardValues): string {
   return `${field.valuePrefix ?? ''}${formatted}`
 }
 
+function matchesCondition(condition: VisibilityCondition, values: CardValues): boolean {
+  const value = values[condition.field]
+  return 'value' in condition ? value === condition.value : condition.values.includes(value ?? '')
+}
+
 async function renderFace(
   face: TemplateFace,
   template: CardTemplate,
@@ -103,7 +116,7 @@ async function renderFace(
   for (const field of face.fields) {
     if (
       field.visibleWhen &&
-      values[field.visibleWhen.field] !== field.visibleWhen.value
+      !matchesCondition(field.visibleWhen, values)
     ) continue
     if (field.type === 'photo' && field.hideIfPhotoMissing && !photo) continue
 
@@ -144,6 +157,14 @@ async function renderFace(
       continue
     }
 
+    if (field.type === 'barcode') {
+      if (value) {
+        const image = await loadImage(createBarcode(value))
+        drawImageFit(context, image, x, y, width, height, 'contain')
+      }
+      continue
+    }
+
     if (field.type === 'qr') {
       if (qrImage) {
         const image = await loadImage(qrImage)
@@ -170,6 +191,34 @@ async function renderFace(
     const fontFamily = field.fontValue ? values[field.fontValue] : field.font ?? 'sans-serif'
     let fontSize = (field.size ?? 16) * exportScale
     context.font = `700 ${fontSize}px ${fontFamily}`
+    if (
+      field.textLayout === 'assistantToRegionalManager' &&
+      value === 'Assistant to the Regional Manager'
+    ) {
+      const assistantLines = ['Assistant', 'to the', 'Regional Manager']
+      while (
+        field.autoFit &&
+        fontSize > 7 * exportScale &&
+        (Math.max(
+          context.measureText(assistantLines[0]).width,
+          context.measureText(assistantLines[2]).width,
+        ) > width ||
+          fontSize * 2.7 > height)
+      ) {
+        fontSize -= 0.5 * exportScale
+        context.font = `700 ${fontSize}px ${fontFamily}`
+      }
+      context.fillStyle = field.color ?? '#000'
+      context.textAlign = 'center'
+      context.textBaseline = 'middle'
+      context.fillText(assistantLines[0], 0, -fontSize * 0.9)
+      context.font = `700 ${fontSize * 0.62}px ${fontFamily}`
+      context.fillText(assistantLines[1], 0, 0)
+      context.font = `700 ${fontSize}px ${fontFamily}`
+      context.fillText(assistantLines[2], 0, fontSize * 0.9)
+      context.restore()
+      continue
+    }
     if (field.autoFit) {
       while (
         fontSize > 7 * exportScale &&
@@ -315,6 +364,7 @@ function OptionControl({
   onPhotoSelect,
   onPhotoDrop,
   hasPhoto,
+  photoInputRef,
   onSignatureChange,
   onSignatureError,
   onRandomize,
@@ -325,6 +375,7 @@ function OptionControl({
   onPhotoSelect: (file: File) => void
   onPhotoDrop: (file: File) => void
   hasPhoto: boolean
+  photoInputRef?: React.Ref<HTMLInputElement>
   onSignatureChange: (value: string) => void
   onSignatureError: (message: string) => void
   onRandomize: () => void
@@ -349,6 +400,7 @@ function OptionControl({
           {hasPhoto ? 'photo added — click to replace' : 'click or drop a photo here'}
         </span>
         <input
+          ref={photoInputRef}
           type="file"
           accept="image/*"
           onChange={(event) => handleFile(event.currentTarget.files?.[0])}
@@ -481,6 +533,7 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
   const [exporting, setExporting] = useState(false)
   const frontRef = useRef<HTMLDivElement>(null)
   const backRef = useRef<HTMLDivElement>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
   const photoField = getPhotoField(template)
   const photoFilter = photoField?.photoFilter
   const photoFilterEnabled = Boolean(
@@ -496,12 +549,17 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
       ? processedPhoto.dataUrl
       : null
   const photoProcessing = Boolean(croppedPhoto && !photo)
-  const isCustomQr = values.backMode === 'qr'
+  const hasBackMode = template.options.some((option) => option.id === 'backMode')
+  const isCustomQr = hasBackMode
+    ? values.backMode === 'qr'
+    : template.back.fields.some((field) => field.type === 'qr')
   const qrImage =
     isCustomQr && qrResult?.url === values.qrUrl ? qrResult.image : null
   const photoOption = template.options.find(
     (option): option is PhotoOption => option.type === 'photo',
   )
+  const requiresName = template.id === 'dunder-mifflin'
+  const missingRequiredName = requiresName && !values.name?.trim()
 
   useEffect(() => {
     let active = true
@@ -550,6 +608,10 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
   }, [croppedPhoto, photoFilter, photoFilterEnabled, photoFilterIntensity, photoFilterSettings])
 
   const updateValue = (id: string, value: string) => {
+    if (id === 'employeeId' && !/^[\x20-\x7e]*$/.test(value)) {
+      setError('Employee IDs must use printable characters for the Code 128 barcode.')
+      return
+    }
     setValues((current) => ({ ...current, [id]: value }))
     setError('')
   }
@@ -598,6 +660,7 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
       }
       await document.fonts.ready
       await document.fonts.load('150px Caveat')
+      await document.fonts.load('150px "Archivo Black"')
       if (isCustomQr && values.qrUrl.trim() && !qrImage) {
         throw new Error('The QR code is still being prepared. Please try again.')
       }
@@ -657,6 +720,14 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
             qrImage={qrImage}
             debug={debug}
             label="front"
+            onPhotoPlaceholderClick={
+              template.id === 'dunder-mifflin'
+                ? () => photoInputRef.current?.click()
+                : undefined
+            }
+            onPhotoPlaceholderDrop={
+              template.id === 'dunder-mifflin' ? selectPhoto : undefined
+            }
           />
         </section>
         <section className="face-preview">
@@ -688,6 +759,11 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
       <section className="editor-controls" aria-label="card controls">
         <div className="control-grid">
           {template.options.map((option) => {
+            if (
+              'visibleWhen' in option &&
+              option.visibleWhen &&
+              !matchesCondition(option.visibleWhen, values)
+            ) return null
             if (option.id === 'qrUrl' && !isCustomQr) return null
             if (option.id === 'phoneNumber' && values.backMode !== 'phone') return null
             return (
@@ -699,6 +775,7 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
                 onPhotoSelect={selectPhoto}
                 onPhotoDrop={selectPhoto}
                 hasPhoto={Boolean(photo)}
+                photoInputRef={option.type === 'photo' ? photoInputRef : undefined}
                 onSignatureChange={(value) => updateValue(option.id, value)}
                 onSignatureError={setError}
                 onRandomize={() => {
@@ -706,7 +783,7 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
                   crypto.getRandomValues(randomValue)
                   updateValue(
                     option.id,
-                    `TTC${String(randomValue[0] % 10_000_000).padStart(7, '0')}`,
+                    `${(option.type === 'randomizeText' ? option.prefix : undefined) ?? 'TTC'}${String(randomValue[0] % 10_000_000).padStart(7, '0')}`,
                   )
                 }}
               />
@@ -722,7 +799,7 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
             className="bevel-button primary-button"
             type="button"
             onClick={() => void downloadCard()}
-            disabled={exporting || photoProcessing}
+            disabled={exporting || photoProcessing || missingRequiredName}
           >
             {exporting
               ? 'preparing zip…'
@@ -731,6 +808,9 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
                 : 'download both sides (.zip)'}
           </button>
         </div>
+        {missingRequiredName && (
+          <p className="privacy-note">add your name first</p>
+        )}
         {photoOption && photoField && (
           <p className="privacy-note">your photo stays on this device.</p>
         )}
@@ -742,7 +822,14 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
       {pendingPhoto && photoField && (
         <CropDialog
           image={pendingPhoto}
-          aspect={photoField.width / photoField.height}
+          aspect={
+            template.id === 'dunder-mifflin'
+              ? (photoField.width / photoField.height) *
+                (template.orientation === 'portrait'
+                  ? template.sizeMm.height / template.sizeMm.width
+                  : template.sizeMm.width / template.sizeMm.height)
+              : photoField.width / photoField.height
+          }
           onCancel={cancelCrop}
           onApply={(area) => void applyCrop(area)}
         />

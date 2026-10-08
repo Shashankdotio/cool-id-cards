@@ -342,6 +342,16 @@ h1 {
   text-overflow: clip;
 }
 
+.card-field--assistantToRegionalManager {
+  flex-direction: column;
+  white-space: normal;
+  line-height: 0.9;
+}
+
+.card-field--assistantToRegionalManager small {
+  font-size: 0.62em;
+}
+
 .card-field--photo {
   display: grid;
   place-items: center;
@@ -375,6 +385,20 @@ h1 {
 .card-field--qr {
   padding: 2px;
   background: #fff;
+}
+
+.card-field--barcode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
+.card-field--barcode img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
 }
 
 .card-face--debug .card-field {

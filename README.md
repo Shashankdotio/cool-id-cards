@@ -1,32 +1,18 @@
-# React + TypeScript + Vite
+# Cardverse
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Cardverse is a client-side custom ID card maker built with React, Vite, and TypeScript. Card templates live in `src/templates/<id>/config.ts`, with artwork in `public/templates/<id>/`.
 
-Currently, two official plugins are available:
+## Dunder Mifflin employee ID
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The **the office: dunder mifflin id** template is a landscape employee card with a replaceable portrait, editable employee name and location, a job-title dropdown with a custom-title option, and a randomized Code 128 employee ID. Its back has a QR code generated from entered URL or text and an editable return message.
 
-## React Compiler
+Template artwork is in `public/templates/dundermifflin/`. The front uses the supplied JPEG as its base and data-driven background masks to cover its sample name, photo, title, location, and barcode so the editor can render current values without modifying the original artwork.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Development
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Run `npm run build` and `npm run lint` to validate changes.

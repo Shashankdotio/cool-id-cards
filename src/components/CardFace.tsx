@@ -1,7 +1,16 @@
 import { useLayoutEffect, useRef, type CSSProperties, type Ref } from 'react'
 import type { CardTemplate, TemplateFace, TemplateField } from '../types'
+import { createBarcode } from '../utils/barcode'
 
 export type CardValues = Record<string, string>
+
+function matchesCondition(
+  condition: NonNullable<TemplateField['visibleWhen']>,
+  values: CardValues,
+): boolean {
+  const value = values[condition.field]
+  return 'value' in condition ? value === condition.value : condition.values.includes(value ?? '')
+}
 
 interface CardFaceProps {
   template: CardTemplate
@@ -12,6 +21,8 @@ interface CardFaceProps {
   debug: boolean
   faceRef?: Ref<HTMLDivElement>
   label: string
+  onPhotoPlaceholderClick?: () => void
+  onPhotoPlaceholderDrop?: (file: File) => void
 }
 
 function fieldStyle(field: TemplateField, values: CardValues): CSSProperties {
@@ -47,11 +58,13 @@ function AutoFitText({
   value,
   style,
   fontFamily,
+  children,
 }: {
   field: TemplateField
   value: string
   style: CSSProperties
   fontFamily?: string
+  children?: React.ReactNode
 }) {
   const fieldRef = useRef<HTMLDivElement>(null)
 
@@ -72,8 +85,12 @@ function AutoFitText({
   }, [field.autoFit, field.size, fontFamily, value])
 
   return (
-    <div ref={fieldRef} className="card-field card-field--text" style={style}>
-      {value}
+    <div
+      ref={fieldRef}
+      className={`card-field card-field--text${field.textLayout ? ` card-field--${field.textLayout}` : ''}`}
+      style={style}
+    >
+      {children ?? value}
     </div>
   )
 }
@@ -87,6 +104,8 @@ export function CardFace({
   debug,
   faceRef,
   label,
+  onPhotoPlaceholderClick,
+  onPhotoPlaceholderDrop,
 }: CardFaceProps) {
   const portrait = template.orientation === 'portrait'
 
@@ -100,7 +119,7 @@ export function CardFace({
       {face.fields.map((field) => {
         if (
           field.visibleWhen &&
-          values[field.visibleWhen.field] !== field.visibleWhen.value
+          !matchesCondition(field.visibleWhen, values)
         ) {
           return null
         }
@@ -110,7 +129,11 @@ export function CardFace({
         const value = `${field.valuePrefix ?? ''}${formattedValue(field, fieldValue)}`
 
         if (field.type === 'photo') {
-          if (field.hideIfPhotoMissing && !photo) return null
+          if (
+            field.hideIfPhotoMissing &&
+            !photo &&
+            (!field.placeholder || !onPhotoPlaceholderClick)
+          ) return null
 
           return (
             <div
@@ -120,6 +143,22 @@ export function CardFace({
             >
               {photo ? (
                 <img src={photo} alt="" />
+              ) : field.placeholder ? (
+                <button
+                  className="card-field--photo-placeholder"
+                  type="button"
+                  data-preview-placeholder="true"
+                  aria-label={field.placeholder}
+                  onClick={onPhotoPlaceholderClick}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    const file = event.dataTransfer.files[0]
+                    if (file?.type.startsWith('image/')) onPhotoPlaceholderDrop?.(file)
+                  }}
+                >
+                  {field.placeholder}
+                </button>
               ) : (
                 <span>photo</span>
               )}
@@ -130,7 +169,7 @@ export function CardFace({
         if (field.type === 'qr') {
           return (
             <div className="card-field card-field--qr" key={field.id} style={style}>
-              {qrImage && values.backMode === 'qr' ? (
+              {qrImage ? (
                 <img
                   src={qrImage}
                   alt="custom QR code"
@@ -142,6 +181,14 @@ export function CardFace({
               ) : null}
             </div>
           )
+        }
+
+        if (field.type === 'barcode') {
+          return value ? (
+            <div className="card-field card-field--barcode" key={field.id} style={style}>
+              <img src={createBarcode(value)} alt={`barcode for ${value}`} />
+            </div>
+          ) : null
         }
 
         if (field.type === 'image') {
@@ -159,6 +206,48 @@ export function CardFace({
             </div>
           )
         }
+
+        if (
+          field.textLayout === 'assistantToRegionalManager' &&
+          value === 'Assistant to the Regional Manager'
+        ) {
+          return (
+            <AutoFitText
+              field={field}
+              key={field.id}
+              style={style}
+              value={value}
+              fontFamily={style.fontFamily}
+            >
+              <span>Assistant</span>
+              <small>to the</small>
+              <span>Regional Manager</span>
+            </AutoFitText>
+          )
+        }
+
+        if (template.id === 'dunder-mifflin' && !value && field.placeholder) {
+          return (
+            <div
+              className="card-field card-field--text card-field--preview-placeholder"
+              key={field.id}
+              style={{
+                ...style,
+                fontFamily: '"Dunder Arimo Regular", sans-serif',
+                color: '#999',
+                fontStyle: 'italic',
+                fontWeight: 400,
+                textAlign: 'center',
+              }}
+              data-preview-placeholder="true"
+              aria-hidden="true"
+            >
+              {field.placeholder}
+            </div>
+          )
+        }
+
+        if (!value) return null
 
         return field.autoFit ? (
           <AutoFitText
