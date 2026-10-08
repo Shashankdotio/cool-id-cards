@@ -234,12 +234,15 @@ h1 {
 
 .template-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 30px 26px;
   align-items: start;
 }
 
 .template-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   border: 0;
   padding: 0;
   background: transparent;
@@ -248,27 +251,48 @@ h1 {
 }
 
 .template-preview {
-  display: grid;
-  place-items: center;
-  height: 310px;
-  padding: 12px;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
-  background: #f2f2f2;
-  transition: background-color 120ms ease, transform 120ms ease;
+  position: relative;
+  display: block;
+  width: min(100%, 290px);
+  overflow: visible;
 }
 
-.template-tile:hover .template-preview {
-  background: #eaeaff;
-  transform: translateY(-2px);
+.template-preview--portrait {
+  width: min(100%, 205px);
 }
 
-.template-preview .card-face--portrait {
-  width: 155px;
+.template-thumbnail {
+  position: absolute;
+  top: 8%;
+  width: 84%;
+  height: 84%;
+  border-radius: 7px;
+  object-fit: contain;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 18%);
+  transition: left 250ms ease, transform 250ms ease;
 }
 
-.template-preview .card-face--landscape {
-  width: 230px;
+.template-thumbnail--back {
+  z-index: 0;
+  left: 16%;
+  transform: rotate(4deg);
+}
+
+.template-thumbnail--front {
+  z-index: 1;
+  left: 0;
+  transform: rotate(-4deg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .template-tile:hover .template-thumbnail--front {
+    transform: translateY(-5px) rotate(-1deg);
+  }
+
+  .template-tile:hover .template-thumbnail--back {
+    left: 24%;
+    transform: rotate(7deg);
+  }
 }
 
 .template-caption {
@@ -781,19 +805,6 @@ h1 {
     gap: 22px 14px;
   }
 
-  .template-preview {
-    height: 245px;
-    padding: 7px;
-  }
-
-  .template-preview .card-face--portrait {
-    width: min(132px, 34vw);
-  }
-
-  .template-preview .card-face--landscape {
-    width: 100%;
-  }
-
   .template-caption {
     font-size: 0.75rem;
   }
@@ -820,5 +831,17 @@ h1 {
   .control-grid {
     grid-template-columns: 1fr;
     gap: 15px;
+  }
+}
+
+@media (max-width: 900px) {
+  .template-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .template-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

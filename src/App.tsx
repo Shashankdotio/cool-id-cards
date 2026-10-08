@@ -21,7 +21,7 @@ import type {
 type Screen = 'landing' | 'gallery' | 'editor'
 
 const DISCLAIMER =
-  'Fan-made project. Not affiliated with or endorsed by any rights holders. For cosplay, props and personal use only. Not a real ID.'
+  'Made by a fan, not the rights holders. For cosplay & personal use only. Not a real ID. Your bouncer will probably notice.'
 
 function defaultsFor(template: CardTemplate): CardValues {
   return Object.fromEntries(
@@ -325,6 +325,39 @@ function Gallery({
   onBack: () => void
   onSelect: (template: CardTemplate) => void
 }) {
+  const legacyThumbnails: Record<string, { front: string; back?: string }> = {
+    'dunder-mifflin': {
+      front: '/thumbnails/dundermifflin/dundermifflin_thumbnail_front.jpg',
+      back: '/thumbnails/dundermifflin/dundermifflin_thumbnail_back.png',
+    },
+    oscorp: {
+      front: '/thumbnails/oscorp/oscorp_thumbnail_front.jpg',
+      back: '/thumbnails/oscorp/oscorp_thumbnail_back.png',
+    },
+    'loki-tva': {
+      front: '/thumbnails/tva/tva_thumbnail_front.png',
+      back: '/thumbnails/tva/tva_thumbnail_back.png',
+    },
+    'tyler-call-me-if-you-get-lost': {
+      front: '/thumbnails/tylerthecreator/tyler_thumbnail_front.jpg',
+      back: '/thumbnails/tylerthecreator/tyler_thumbnail_back.png',
+    },
+  }
+  const thumbnailCandidates = (template: CardTemplate, side: 'front' | 'back') => {
+    const names = ['webp', 'png', 'jpg'].map(
+      (extension) => `${template.id}-${side}.${extension}`,
+    )
+    const candidates = [
+      ...['/thumbnails', '/previews'].flatMap((directory) =>
+        names.map((name) => `${directory}/${name}`),
+      ),
+    ]
+    const legacy = legacyThumbnails[template.id]?.[side]
+    if (legacy) candidates.push(legacy)
+    if (side === 'front') candidates.push(template.front.backgroundImage)
+    return [...new Set(candidates)]
+  }
+
   return (
     <main className="screen gallery-screen">
       <button className="text-link" type="button" onClick={onBack}>← back</button>
@@ -338,15 +371,21 @@ function Gallery({
             onClick={() => onSelect(template)}
             aria-label={`open ${template.caption}`}
           >
-            <span className="template-preview">
-              <CardFace
-                template={template}
-                face={template.front}
-                values={defaultsFor(template)}
-                photo={null}
-                qrImage={null}
-                debug={false}
-                label="front"
+            <span
+              className={`template-preview template-preview--${template.orientation}`}
+              style={{
+                aspectRatio: template.orientation === 'portrait' ? '54 / 85.6' : '85.6 / 54',
+              }}
+            >
+              <GalleryThumbnailImage
+                className="template-thumbnail template-thumbnail--back"
+                sources={thumbnailCandidates(template, 'back')}
+                alt=""
+              />
+              <GalleryThumbnailImage
+                className="template-thumbnail template-thumbnail--front"
+                sources={thumbnailCandidates(template, 'front')}
+                alt=""
               />
             </span>
             <span className="template-caption">{template.caption}</span>
@@ -354,6 +393,30 @@ function Gallery({
         ))}
       </div>
     </main>
+  )
+}
+
+function GalleryThumbnailImage({
+  sources,
+  className,
+  alt,
+}: {
+  sources: string[]
+  className: string
+  alt: string
+}) {
+  const [sourceIndex, setSourceIndex] = useState(0)
+  const source = sources[sourceIndex]
+  if (!source) return null
+
+  return (
+    <img
+      className={className}
+      src={source}
+      alt={alt}
+      loading="lazy"
+      onError={() => setSourceIndex((index) => index + 1)}
+    />
   )
 }
 
