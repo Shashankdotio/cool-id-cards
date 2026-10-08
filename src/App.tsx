@@ -7,6 +7,7 @@ import { CardFace, type CardValues } from './components/CardFace'
 import { CropDialog } from './components/CropDialog'
 import { SignaturePad } from './components/SignaturePad'
 import { getTemplate, templates } from './templates'
+import { cropPhoto, processPhoto } from './utils/photo'
 import type { CardTemplate, PhotoOption, TemplateFace, TemplateField, TemplateOption } from './types'
 
 type Screen = 'landing' | 'gallery' | 'editor'
@@ -24,36 +25,6 @@ function defaultsFor(template: CardTemplate): CardValues {
 
 function getPhotoField(template: CardTemplate) {
   return template.front.fields.find((field) => field.type === 'photo')
-}
-
-function createCroppedPhoto(imageUrl: string, crop: Area): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    image.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(crop.width)
-      canvas.height = Math.round(crop.height)
-      const context = canvas.getContext('2d')
-      if (!context) {
-        reject(new Error('Your browser could not prepare the cropped photo.'))
-        return
-      }
-      context.drawImage(
-        image,
-        crop.x,
-        crop.y,
-        crop.width,
-        crop.height,
-        0,
-        0,
-        canvas.width,
-        canvas.height,
-      )
-      resolve(canvas.toDataURL('image/png'))
-    }
-    image.onerror = () => reject(new Error('The selected photo could not be loaded.'))
-    image.src = imageUrl
-  })
 }
 
 function loadImage(source: string): Promise<HTMLImageElement> {
@@ -150,26 +121,13 @@ async function renderFace(
     if (field.type === 'photo') {
       if (photo) {
         const image = await loadImage(photo)
-        const filter = field.photoFilter
-        const enabled = filter && values[filter.valueId] === filter.enabledValue
-        const intensity = filter?.intensityId
-          ? Math.min(100, Math.max(0, Number(values[filter.intensityId]) || 0)) / 100
-          : 1
-        context.save()
-        context.filter = enabled && filter?.effect === 'tva'
-          ? `sepia(${intensity * 100}%)`
-          : enabled && filter?.effect === 'vintage'
-            ? 'sepia(62%) saturate(78%) contrast(108%)'
-            : 'none'
         drawImageFit(context, image, x, y, width, height, 'cover')
-        context.restore()
-        if (filter?.effect !== 'tva') {
+        const filter = field.photoFilter
+        const filterEnabled = filter && values[filter.valueId] === filter.enabledValue
+        if (!filterEnabled || filter?.effect !== 'tva') {
           context.strokeStyle = '#666'
           context.lineWidth = Math.max(1, exportScale)
           context.strokeRect(x, y, width, height)
-        }
-        if (enabled && filter?.effect === 'vintage') {
-          drawVintageTexture(context, x, y, width, height)
         }
       } else {
         context.fillStyle = '#e8e8e8'
@@ -241,39 +199,6 @@ async function renderFace(
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
   if (!blob || blob.size === 0) throw new Error('Could not create the card PNG.')
   return new Uint8Array(await blob.arrayBuffer())
-}
-
-function drawVintageTexture(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-) {
-  const texture = document.createElement('canvas')
-  texture.width = 180
-  texture.height = 180
-  const textureContext = texture.getContext('2d')
-  if (!textureContext) return
-  const imageData = textureContext.createImageData(texture.width, texture.height)
-  let seed = 17
-  for (let i = 0; i < imageData.data.length; i += 4) {
-    seed = (seed * 16807) % 2147483647
-    const value = seed % 256
-    imageData.data[i] = value
-    imageData.data[i + 1] = value
-    imageData.data[i + 2] = value
-    imageData.data[i + 3] = 87
-  }
-  textureContext.putImageData(imageData, 0, 0)
-  const pattern = context.createPattern(texture, 'repeat')
-  if (!pattern) return
-  context.save()
-  context.globalAlpha = 0.22
-  context.globalCompositeOperation = 'multiply'
-  context.fillStyle = pattern
-  context.fillRect(x, y, width, height)
-  context.restore()
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -543,7 +468,12 @@ function OptionControl({
 function Editor({ template, onBack }: { template: CardTemplate; onBack: () => void }) {
   const [values, setValues] = useState(() => defaultsFor(template))
   const [resetVersion, setResetVersion] = useState(0)
-  const [photo, setPhoto] = useState<string | null>(null)
+  const [croppedPhoto, setCroppedPhoto] = useState<string | null>(null)
+  const [processedPhoto, setProcessedPhoto] = useState<{
+    source: string
+    settings: string
+    dataUrl: string
+  } | null>(null)
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null)
   const [qrResult, setQrResult] = useState<{ url: string; image: string } | null>(null)
   const [debug, setDebug] = useState(false)
@@ -552,6 +482,20 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
   const frontRef = useRef<HTMLDivElement>(null)
   const backRef = useRef<HTMLDivElement>(null)
   const photoField = getPhotoField(template)
+  const photoFilter = photoField?.photoFilter
+  const photoFilterEnabled = Boolean(
+    photoFilter && values[photoFilter.valueId] === photoFilter.enabledValue,
+  )
+  const photoFilterIntensity = photoFilter?.intensityId
+    ? Number(values[photoFilter.intensityId]) || 0
+    : 100
+  const photoFilterSettings = `${photoFilterEnabled ? photoFilter?.effect ?? 'on' : 'off'}:${photoFilterIntensity}`
+  const photo =
+    processedPhoto?.source === croppedPhoto &&
+    processedPhoto.settings === photoFilterSettings
+      ? processedPhoto.dataUrl
+      : null
+  const photoProcessing = Boolean(croppedPhoto && !photo)
   const isCustomQr = values.backMode === 'qr'
   const qrImage =
     isCustomQr && qrResult?.url === values.qrUrl ? qrResult.image : null
@@ -579,6 +523,32 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
     return () => { active = false }
   }, [isCustomQr, values.qrUrl])
 
+  useEffect(() => {
+    let active = true
+    if (!croppedPhoto) return
+    const filter = photoFilter && photoFilterEnabled
+      ? { effect: photoFilter.effect, intensity: photoFilterIntensity }
+      : undefined
+    processPhoto(croppedPhoto, filter)
+      .then((processedPhoto) => {
+        if (active) {
+          setProcessedPhoto({
+            source: croppedPhoto,
+            settings: photoFilterSettings,
+            dataUrl: processedPhoto,
+          })
+          setError('')
+        }
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setError(cause instanceof Error ? cause.message : 'Could not process the photo filter.')
+        }
+      })
+
+    return () => { active = false }
+  }, [croppedPhoto, photoFilter, photoFilterEnabled, photoFilterIntensity, photoFilterSettings])
+
   const updateValue = (id: string, value: string) => {
     setValues((current) => ({ ...current, [id]: value }))
     setError('')
@@ -598,8 +568,9 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
   const applyCrop = async (area: Area) => {
     if (!pendingPhoto) return
     try {
-      const cropped = await createCroppedPhoto(pendingPhoto, area)
-      setPhoto(cropped)
+      const cropped = await cropPhoto(pendingPhoto, area)
+      setCroppedPhoto(cropped)
+      setProcessedPhoto(null)
       URL.revokeObjectURL(pendingPhoto)
       setPendingPhoto(null)
       setError('')
@@ -612,7 +583,8 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
     if (!window.confirm('reset the card and remove your photo?')) return
     setValues(defaultsFor(template))
     setResetVersion((version) => version + 1)
-    setPhoto(null)
+    setCroppedPhoto(null)
+    setProcessedPhoto(null)
     setError('')
   }
 
@@ -621,6 +593,9 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
     setExporting(true)
     setError('')
     try {
+      if (photoProcessing) {
+        throw new Error('The photo filter is still being applied. Please try again.')
+      }
       await document.fonts.ready
       await document.fonts.load('150px Caveat')
       if (isCustomQr && values.qrUrl.trim() && !qrImage) {
@@ -747,9 +722,13 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
             className="bevel-button primary-button"
             type="button"
             onClick={() => void downloadCard()}
-            disabled={exporting}
+            disabled={exporting || photoProcessing}
           >
-            {exporting ? 'preparing zip…' : 'download both sides (.zip)'}
+            {exporting
+              ? 'preparing zip…'
+              : photoProcessing
+                ? 'processing photo…'
+                : 'download both sides (.zip)'}
           </button>
         </div>
         {photoOption && photoField && (

@@ -360,29 +360,6 @@ h1 {
   object-fit: cover;
 }
 
-.card-field--vintage img {
-  filter: sepia(0.62) saturate(0.78) contrast(1.08);
-}
-
-.card-field--vintage::after {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.34'/%3E%3C/svg%3E");
-  content: '';
-  opacity: 0.22;
-  mix-blend-mode: multiply;
-}
-
-.card-field--tva {
-  border: 0;
-  background: transparent;
-}
-
-.card-field--tva img {
-  filter: sepia(var(--photo-filter-intensity, 0.75));
-}
-
 .card-field--image {
   display: flex;
   align-items: center;
