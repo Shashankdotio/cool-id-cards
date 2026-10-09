@@ -93,10 +93,24 @@ h1 {
   letter-spacing: 0.01em;
 }
 
+.landing-tagline {
+  margin: 11px 0 0;
+  font-size: clamp(1.15rem, 2.5vw, 1.6rem);
+}
+
 .creator-credit {
   color: var(--green);
   font-size: 0.9rem;
-  margin: 22px 0 37px;
+  margin: 19px 0 37px;
+}
+
+.creator-credit a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.creator-credit a:hover {
+  text-decoration: underline;
 }
 
 .landing-actions {
@@ -154,48 +168,66 @@ h1 {
   font-size: 0.95rem;
 }
 
-.donation-note {
-  color: #777;
-  font-size: 0.73rem;
-  margin: 3px 0 0;
-}
-
 .pixel-decorations {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-.pixel-icon {
+.landing-decoration {
   position: absolute;
-  width: 32px;
-  height: 32px;
-  image-rendering: pixelated;
+  animation: landing-decoration-float 8s ease-in-out infinite;
 }
 
-.pixel-icon--sparkle {
-  top: 17%;
-  left: 13%;
-  width: 27px;
+.landing-decoration--stamp {
+  top: 19%;
+  left: 12%;
+  width: 118px;
 }
 
-.pixel-icon--coffee {
-  top: 25%;
-  right: 13%;
+.landing-decoration--barcode {
+  top: 26%;
+  right: 12%;
+  width: 112px;
+  animation-delay: -2s;
 }
 
-.pixel-icon--warning {
-  bottom: 23%;
+.landing-decoration--paperclip {
+  bottom: 21%;
   left: 17%;
-  width: 37px;
-  height: 37px;
+  width: 35px;
+  animation-delay: -4s;
 }
 
-.pixel-icon--cd {
-  right: 17%;
+.landing-decoration--scissors {
+  right: 15%;
   bottom: 17%;
-  width: 40px;
-  height: 40px;
+  width: 88px;
+  animation-delay: -6s;
+}
+
+@keyframes landing-decoration-float {
+  0%, 100% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+
+  50% {
+    translate: 0 -5px;
+    rotate: 2deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-decoration {
+    animation: none;
+  }
+}
+
+@media (max-width: 699px) {
+  .landing-decoration {
+    display: none;
+  }
 }
 
 .site-footer {
@@ -768,26 +800,6 @@ h1 {
 
   .landing h1 {
     font-size: clamp(3.1rem, 13vw, 4.7rem);
-  }
-
-  .pixel-icon--sparkle {
-    top: 12%;
-    left: 8%;
-  }
-
-  .pixel-icon--coffee {
-    top: 21%;
-    right: 8%;
-  }
-
-  .pixel-icon--warning {
-    bottom: 15%;
-    left: 9%;
-  }
-
-  .pixel-icon--cd {
-    right: 8%;
-    bottom: 12%;
   }
 
   .site-footer {

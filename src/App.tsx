@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { zipSync } from 'fflate'
 import type { Area } from 'react-easy-crop'
-import { COFFEE_URL, CREATOR_HANDLE } from './config'
+import { CREDIT_HANDLE, CREDIT_URL, REQUEST_URL, SITE_NAME } from './config/site'
 import { CardFace, type CardValues } from './components/CardFace'
 import { CropDialog } from './components/CropDialog'
 import { SignaturePad } from './components/SignaturePad'
@@ -264,21 +264,25 @@ function downloadBlob(blob: Blob, filename: string) {
 function PixelDecorations() {
   return (
     <div className="pixel-decorations" aria-hidden="true">
-      <svg className="pixel-icon pixel-icon--sparkle" viewBox="0 0 32 32">
-        <path d="M16 1 19 12 31 16 19 19 16 31 12 19 1 16 12 12z" fill="#1a1adb" />
+      <svg className="landing-decoration landing-decoration--stamp" viewBox="0 0 128 72">
+        <g transform="rotate(-12 64 36)" fill="none" stroke="#1a1adb" strokeWidth="4">
+          <rect x="8" y="12" width="112" height="48" rx="4" />
+          <rect x="14" y="18" width="100" height="36" strokeDasharray="4 3" />
+          <text x="64" y="43" fill="#171717" stroke="none" textAnchor="middle" fontFamily="sans-serif" fontSize="15" fontWeight="900" letterSpacing="1">APPROVED</text>
+        </g>
       </svg>
-      <svg className="pixel-icon pixel-icon--coffee" viewBox="0 0 32 32">
-        <path d="M7 9h17v15H7zM24 12h4v8h-4M11 5v3m6-4v4m5-3v3" fill="none" stroke="#f08b36" strokeWidth="3" />
-        <path d="M10 13h11v8H10z" fill="#ffd9ad" />
+      <svg className="landing-decoration landing-decoration--barcode" viewBox="0 0 120 38">
+        <path stroke="#171717" strokeWidth="3" d="M5 4v30m5-30v30m7-30v30m4-30v30m9-30v30m5-30v30m8-30v30m4-30v30m9-30v30m8-30v30m4-30v30m8-30v30m9-30v30m5-30v30m8-30v30m4-30v30m9-30v30m7-30v30" />
+        <path stroke="#1a1adb" strokeWidth="2" d="M1 36h118" />
       </svg>
-      <svg className="pixel-icon pixel-icon--warning" viewBox="0 0 32 32">
-        <path d="M16 3 30 28H2z" fill="#e8b13c" stroke="#171717" strokeWidth="2" />
-        <path d="M16 11v8m0 4v1" stroke="#171717" strokeWidth="3" />
+      <svg className="landing-decoration landing-decoration--paperclip" viewBox="0 0 48 72">
+        <path d="M33 13 17 48a10 10 0 0 1-18-8L17 7a15 15 0 0 1 27 13L26 58a20 20 0 0 1-36-17" transform="translate(4 4)" fill="none" stroke="#1a1adb" strokeWidth="4" strokeLinecap="round" />
       </svg>
-      <svg className="pixel-icon pixel-icon--cd" viewBox="0 0 32 32">
-        <circle cx="16" cy="16" r="13" fill="#d6d6e9" stroke="#1a1adb" strokeWidth="2" />
-        <circle cx="16" cy="16" r="4" fill="#fafafa" stroke="#1a1adb" strokeWidth="2" />
-        <path d="m7 8 6 5m12 8-5-3" stroke="#fff" strokeWidth="2" />
+      <svg className="landing-decoration landing-decoration--scissors" viewBox="0 0 100 58">
+        <path d="m28 18 42 23M28 40l42-24" fill="none" stroke="#171717" strokeWidth="3" strokeLinecap="round" />
+        <circle cx="17" cy="15" r="8" fill="none" stroke="#1a1adb" strokeWidth="3" />
+        <circle cx="17" cy="43" r="8" fill="none" stroke="#1a1adb" strokeWidth="3" />
+        <path d="M70 29h27" fill="none" stroke="#1a1adb" strokeWidth="2" strokeDasharray="4 4" />
       </svg>
     </div>
   )
@@ -288,30 +292,38 @@ function Footer() {
   return <footer className="site-footer">{DISCLAIMER}</footer>
 }
 
-function ButtonIcon({ children }: { children: React.ReactNode }) {
-  return <span className="button-icon" aria-hidden="true">{children}</span>
-}
-
 function Landing({ onBrowse }: { onBrowse: () => void }) {
   return (
     <main className="landing screen">
       <PixelDecorations />
       <div className="landing-content">
-        <h1>create your own<br /> (custom id)</h1>
-        <p className="creator-credit">made by {CREATOR_HANDLE}</p>
+        <h1>{SITE_NAME}</h1>
+        <p className="landing-tagline">create your own (custom id)</p>
+        <p className="creator-credit">
+          come say hi → <a href={CREDIT_URL} target="_blank" rel="noopener noreferrer">{CREDIT_HANDLE}</a>
+        </p>
         <div className="landing-actions">
           <button className="bevel-button landing-button" type="button" onClick={onBrowse}>
-            <ButtonIcon>▦</ButtonIcon> browse templates
+            <span className="button-icon" aria-hidden="true">
+              <svg viewBox="0 0 16 16" shapeRendering="crispEdges">
+                <path fill="#1a1adb" d="M1 1h6v6H1zm8 0h6v6H9zM1 9h6v6H1zm8 0h6v6H9z" />
+              </svg>
+            </span>
+            browse templates
           </button>
           <a
             className="bevel-button landing-button"
-            href={COFFEE_URL}
+            href={REQUEST_URL}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
-            <ButtonIcon>☕</ButtonIcon> buy me a coffee
+            <span className="button-icon" aria-hidden="true">
+              <svg viewBox="0 0 16 16" shapeRendering="crispEdges">
+                <path fill="#171717" d="M2 1h9v2H4v2h7v2H4v2h7v2H2zm9 4h3v2h-3zm0 4h3v2h-3zM5 13h9v2H5z" />
+              </svg>
+            </span>
+            request a card
           </a>
-          <p className="donation-note">consider donating!</p>
         </div>
       </div>
     </main>
@@ -749,12 +761,12 @@ function Editor({ template, onBack }: { template: CardTemplate; onBack: () => vo
         backWidth,
       )
       const archive = zipSync({
-        [`cardverse-${template.id}-front.png`]: frontPng,
-        [`cardverse-${template.id}-back.png`]: backPng,
+        [`${SITE_NAME}-${template.id}-front.png`]: frontPng,
+        [`${SITE_NAME}-${template.id}-back.png`]: backPng,
       }, { level: 0 })
       downloadBlob(
         new Blob([archive], { type: 'application/zip' }),
-        `cardverse-${template.id}.zip`,
+        `${SITE_NAME}-${template.id}.zip`,
       )
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not create the card ZIP.')
