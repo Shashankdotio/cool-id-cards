@@ -292,6 +292,16 @@ function Footer() {
   return <footer className="site-footer">{DISCLAIMER}</footer>
 }
 
+function NotFound() {
+  return (
+    <main className="screen not-found-screen">
+      <h1 className="screen-title">page not found</h1>
+      <p>we couldn't find that page.</p>
+      <a className="bevel-button not-found-home" href="/">back home</a>
+    </main>
+  )
+}
+
 function Landing({ onBrowse }: { onBrowse: () => void }) {
   return (
     <main className="landing screen">
@@ -925,16 +935,23 @@ function App() {
     setSelectedTemplateId(template.id)
     setScreen('editor')
   }
+  const isHomePath = window.location.pathname === '/'
 
   return (
     <div className="app-shell">
-      {screen === 'landing' && <Landing onBrowse={() => setScreen('gallery')} />}
-      {screen === 'gallery' && (
-        <Gallery onBack={() => setScreen('landing')} onSelect={openEditor} />
-      )}
-      {screen === 'editor' && selectedTemplate && (
-        <Editor template={selectedTemplate} onBack={() => setScreen('gallery')} />
-      )}
+      {!isHomePath
+        ? <NotFound />
+        : (
+          <>
+            {screen === 'landing' && <Landing onBrowse={() => setScreen('gallery')} />}
+            {screen === 'gallery' && (
+              <Gallery onBack={() => setScreen('landing')} onSelect={openEditor} />
+            )}
+            {screen === 'editor' && selectedTemplate && (
+              <Editor template={selectedTemplate} onBack={() => setScreen('gallery')} />
+            )}
+          </>
+        )}
       <Footer />
     </div>
   )

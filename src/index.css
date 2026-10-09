@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;600;700&display=swap');
-
 :root {
   font-family: 'DM Sans', Arial, sans-serif;
   color: #222;
@@ -238,6 +236,28 @@ h1 {
   font-size: 0.72rem;
   line-height: 1.5;
   text-align: center;
+}
+
+.not-found-screen {
+  display: flex;
+  min-height: 65vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.not-found-screen .screen-title {
+  margin-bottom: 16px;
+}
+
+.not-found-home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  margin-top: 10px;
+  padding: 0 18px;
 }
 
 .gallery-screen,

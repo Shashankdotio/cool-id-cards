@@ -4,6 +4,8 @@ Make custom pop-culture ID cards with your own photo and details, then download 
 
 **Website:** [add link here]
 
+Card artwork belongs to its respective owners and is not covered by the MIT license.
+
 ## Request a card
 Want a new template? [Open a request](https://github.com/Shashankdotio/cool-id-cards/issues).
 
