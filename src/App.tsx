@@ -414,6 +414,7 @@ function Gallery({
           </button>
         ))}
       </div>
+      <p className="gallery-coming-soon">more id-cards coming soon!</p>
     </main>
   )
 }

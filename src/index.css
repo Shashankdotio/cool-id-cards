@@ -356,6 +356,13 @@ h1 {
   text-transform: lowercase;
 }
 
+.gallery-coming-soon {
+  margin: 36px 0 0;
+  color: #666;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 .face-preview-row {
   display: flex;
   justify-content: center;
