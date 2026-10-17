@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Analytics } from '@vercel/analytics/react'
 import '@fontsource/archivo-black'
 import '@fontsource/special-elite'
 import '@fontsource/gaegu'
@@ -22,5 +23,6 @@ document.title = SITE_NAME
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <Analytics />
   </StrictMode>,
 )
